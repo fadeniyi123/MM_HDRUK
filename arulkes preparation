@@ -1,0 +1,613 @@
+########################################################################################
+# DESC:  This code will merge different datasets with ICD10 codes
+# Input:
+# 
+# Outputs:
+# 
+########################################################################################
+#devtools::install_github("mhahsler/arules")
+#detach("package:arules", unload = TRUE)
+#fwrite(data1, file="data1.csv", sep=",")
+
+##3.5.1   3.6.2
+# to install libraries use the following command
+install.packages("Rtools",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("data.table",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("dplyr",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("lubridate",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("stringr",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("comorbidity",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("tidygraph",repos=NULL,contriburl="file:V:/R/4.1.2/")
+install.packages("tidyr",repos=NULL,contriburl="file:V:/R/4.1.2/")
+install.packages("tidytext",repos=NULL,contriburl="file:V:/R/4.1.2/")
+install.packages("tidyverse",repos=NULL,contriburl="file:V:/R/4.1.2/")
+
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(comorbidity)
+library(tidyr)
+library(tidygraph)
+library(tidytext)
+library(tidyverse)
+
+
+install.packages("factoextra",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("caret",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arules",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arulesViz",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart.plot",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("e1071",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("klaR",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("plotly",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("RColorBrewer",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart.plot",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arulesSequences",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("ggtext",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("knitr",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("remotes",repos=NULL,contriburl="file:V:/R/4.1.2")
+#remotes::install_github("hadley/dplyr")
+#install.packages("arules")
+
+
+library("knitr")
+library("ggtext")
+library("arulesSequences")
+library("rpart.plot")
+library("rpart")
+library(RColorBrewer)
+library(plotly)
+library(klaR)
+library(rpart.plot)
+library(arules)
+library(arulesViz)
+library(caret)
+library(rpart)
+library(factoextra)
+# load required libraries
+
+
+data("IncomeESL")
+#data(Zoo, package="mblench")
+
+setwd('P:/Project 3581/Demography/') 
+demography_data <- fread("Demography_Current.csv", na.strings = c("","NA"))
+
+setwd('P:/Project 3581/codes and data/adeniyi/data created/') 
+all_elix_pheno <- fread("all_elixhauser_phenotype.csv", na.strings = c("","NA"))
+elix_data_10 <- fread("Elixhauser_data_10.csv", na.strings = c("","NA"))
+mm_cohort2 <- fread("MM_cohort_u2.csv", na.strings = c("","NA"))
+
+setwd('P:/Project 3581/codes and data/adeniyi/') 
+#data1 <- fread("data1.csv", na.strings = c("","NA"))
+mm_cohort2_aff <- fread("MM_cohort2.csv", na.strings = c("","NA"))
+
+
+##data cleaning
+demo<-select(demography_data, PROCHI, sex,Calculated_Age, hb_extract,SCSIMD5,HBSIMD5,)
+#demo<-select(demography_data, PROCHI,hb_extract, sex,Calculated_Age, hb_extract,SCSIMD5)
+
+#colnames(demo)[c(4)]<-"ageff"
+colnames(demo)<-c("PROCHI","hb", "sex","age","dep_sc","dep_hb")
+##demo$ageg[demo$age<45]=0
+demo$ageg[demo$age<50]=1
+#demo$ageg[demo$age>=45&demo$age<=49]=1
+demo$ageg[demo$age>=50&demo$age<=59]=2
+demo$ageg[demo$age>=60&demo$age<=69]=3
+demo$ageg[demo$age>=70&demo$age<=79]=4
+demo$ageg[demo$age>=80]=5
+demo$ageg<-factor(demo$ageg,levels=c(1,2,3,4,5),label=c("_50","50_59","60_69","70_79","_80"))
+#demo$ageg<-factor(demo$ageg,levels=c(0,1,2,3,4,5),label=c("_45","45_49","50_59","60_69","70_79","_80"))
+
+#demo<-as_tibble(demo) %>% add_column(age_10=demo$age-10)
+
+demo$dep_hb[is.na(demo$dep_hb)]=6
+demo$dep_sc[is.na(demo$dep_sc)]=6
+
+phenotype<-elix_data_10
+#rm(data1)
+##categorise the scores
+phenotype$score[phenotype$score<2]=0
+phenotype$score[phenotype$score==2|phenotype$score==3]=1
+phenotype$score[phenotype$score>=4]=2
+phenotype$score=factor(phenotype$score,levels=c(0,1,2),label=c("NoMM","sMM","cMM"))
+phenotype<-phenotype%>%select(-last_analysis_date, -mortality_presence)#remove unwanted columns
+phenotype<-phenotype%>%
+  #  modify_if(is.numeric,factor, levels=c(1,0), label=c("Yes","No"))# change 1s to Yes
+ # modify_if(is.numeric,factor, levels=c(1,0), label=c("TRUE","FALSE"))# change 1s to True
+   modify_if(is.numeric,as.logical)# change 1s to True
+table(phenotype$score)
+pheno_dem<-left_join(phenotype,demo, by="PROCHI")
+#convert other variables to factor
+pheno_dem$dep_hb=factor(pheno_dem$dep_hb,levels=c(1,2,3,4,5,6),label=c("most_dep","more_dep","middle","less_dep","least_dep","missing"))
+pheno_dem$dep_sc=factor(pheno_dem$dep_sc,levels=c(1,2,3,4,5,6),label=c("most_dep","more_dep","middle","less_dep","least_dep","missing"))
+pheno_dem$ageg<-factor(pheno_dem$ageg)
+pheno_dem$sex<-factor(pheno_dem$sex)
+
+########################Used to generate csv for stata
+# phenotype$score_cat[phenotype$score<2]=0
+# phenotype$score_cat[phenotype$score==2|phenotype$score==3]=1
+# phenotype$score_cat[phenotype$score>=4]=2
+# pheno_dem<-left_join(phenotype,demo, by="PROCHI")
+##############################
+#fwrite(pheno_dem, file="pheno_dem.csv", sep=",")
+
+data_all<-pheno_dem%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+####only the MMs
+pheno_mm<-pheno_dem%>%filter(score=="sMM"|score=="cMM")#retain those with MM
+##only those with cMM
+#pheno_mm<-pheno_dem%>%filter(score=="cMM")#retain those with cMM
+
+data11<-pheno_mm%>%select(-PROCHI,-hb,-age,-dep_hb)#remove unwanted but retain score, ageg and dep
+data_mm<-pheno_mm%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+
+
+##numeric dataset
+data2<-elix_data_10%>%mutate(score2=score)
+#str(data1)
+data2$score2[data2$score<2]="NoMM"
+data2$score2[data2$score==2|data2$score2==3]="sMM"
+data2$score2[data2$score>=4]="cMM"
+data2<-data2%>%select(-last_analysis_date, -mortality_presence, -score)
+table(data2$score2)
+
+data2_mm<-data2 %>% filter(score2=="sMM"|score2=="cMM")
+data2_mm<-data2_mm%>%select( -score2, -PROCHI)
+
+##transpose    rows to columns
+data<-t(data2_mm)
+
+
+##the clustering using KlaR
+install.packages("klaR")
+library(klaR)
+
+kmodes(data[,1:ncol(data),3, iter.max=10, weighted=FALSE])
+
+
+###
+##PCA
+##use numeric data
+pc<-data2 %>% select(-score2) %>% as.matrix() %>% prcomp()
+pc<-data2 %>% select(-PROCHI,-score2) %>% as.matrix() %>% prcomp()
+summary(pc)
+plot(pc, type="line")
+str(pc)
+mm_projected<-as_tibble(pc$x) %>% add_column(score2=data2$score2)
+ggplot(mm_projected, aes(x=PC1, y=PC2, color=score2)) +geom_point()
+
+ggplot(mm_projected, aes(x=PC1, y=0, color=score2)) +
+  geom_point() +
+  scale_y_continuous(expand=c(0,0)) +
+  theme(axis.text.y=element_blank(),
+        axis.title.y = element_blank()
+  )
+# install.packages("factoextra")
+# library(factoextra)
+fviz_pca(pc)
+fviz_pca_var(pc)
+
+##let reduce the size of data1
+data1<-mutate(phenotype, s_n=seq(1,368634))
+data1<-mutate(phenotype, s_n=seq(1,nrow(phenotype)))
+data1<-filter(data1, s_n<10000)
+#data1<-data1%>%select(-PROCHI,-s_n)#remove unwanted columns
+data1<-data1%>%select(-PROCHI,-s_n)#remove unwanted columns
+
+##Classification
+data1 %>% summary()
+library(rpart)
+tree_default<-data1 %>% rpart(score~.,data=.)
+tree_default
+
+library(rpart.plot)
+rpart.plot(tree_default, extra=2)
+tree_full<-data1 %>% rpart(score~.,data=., control=rpart.control(minsplit=2,cp=0 ))
+rpart.plot(tree_full,extra=2, roundint=FALSE,
+           box.palette=list("Gy","Gn","Bu","Or","Rd", "Pu"))#specify 7 colours
+tree_full
+
+##Training error
+predict(tree_default,data1) %>% head ()
+pred<-predict(tree_default,data1, type="class")
+head (pred)
+
+##confusion Table
+confusion_table<- with(data1, table(score,pred))
+confusion_table
+
+correct<- confusion_table %>% diag() %>% sum()
+correct
+
+error<- confusion_table %>%  sum() - correct
+error
+
+accuracy<- correct/(correct+ error)
+accuracy
+
+#using a function for accuracy
+accuracy<-function(truth, prediction){
+  tbl<- table(truth,prediction)
+  sum(diag(tbl))/sum(tbl)
+}
+
+accuracy(data1 %>% pull(score), pred)
+accuracy(data1 %>% pull(score), predict(tree_full,data1, type="class"))
+
+
+library(caret)
+confusionMatrix(data=pred, reference=data1 %>% pull(score))
+
+#############################################################
+#############################################################
+#############################################################
+#############################################################
+##the main
+##formating the transactions
+
+##let reduce the size of data1
+data1<-mutate(phenotype, s_n=seq(1,368634))
+data1<-mutate(phenotype, s_n=seq(1,nrow(phenotype)))
+data1<-filter(data1, s_n<10000)
+data1<-data1%>%select(-PROCHI,-s_n)#remove unwanted columns
+#data1<-data1%>%select(-s_n)#remove unwanted columns
+#as_tibble(data1,rownames="prochi")
+
+# tr<-read.transactions("data1.csv", format="basket", sep=",",skip=0, cols =NULL)
+# #tr <- read.transactions("demo_single.txt", format = "single", cols = c(1,2))
+#  data(Epub)
+# data("AdultUCI")
+# Adult<-transactions-class(AdultUCI)
+# tr
+# inspect(tr)
+# trans <- transactions(IncomeESL)
+#data(Zoo, package="mlbench")
+
+
+###all 
+data_all<-pheno_dem%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+####only the MMs
+##change the name to full name
+colnames(data_all)<-c("Congestive Heart Failure","Cardic Arrhythmias","Valvular Disease", 
+                      "Pulmonary Circulation Disorders","Peripheral Vascular Disease","Hypertension-uncompl",
+                      "Hypertension, complicated","Paralysis","Other Neurological Disorders",
+                      "Chronic Pulmonary Disorders","Diabetes, uncomplicated","Diabetes, complicated",
+                      "Hypothyroidism","Renal Failure","Liver Disease", "Peptic Ulcer Disease",
+                      "AIDS/HIV","Lymphoma","Metastatic Cancer","Solid Tumour","Rheumatoid Arthritis/CVD",
+                      "Coagulopathy","Obesity","Weight Loss","Fluid and Electrolyte Disorders",
+                      "Blood Loss Anaemia","Deficiency Anaemia","Alcohol Abuse","Drug Abuse",
+                      "Psychoses", "Depression")
+pheno_mm<-pheno_dem%>%filter(score=="sMM"|score=="cMM")#retain those with MM
+pheno_mm<-pheno_dem%>%filter(score=="cMM")#retain those with cMM
+##change the name to full name
+colnames(pheno_mm)<-c("PROCHI","Congestive Heart Failure","Cardic Arrhythmias","Valvular Disease", 
+                      "Pulmonary Circulation Disorders","Peripheral Vascular Disease","Hypertension-uncompl",
+                      "Hypertension, complicated","Paralysis","Other Neurological Disorders",
+                      "Chronic Pulmonary Disorders","Diabetes, uncomplicated","Diabetes, complicated",
+                      "Hypothyroidism","Renal Failure","Liver Disease", "Peptic Ulcer Disease",
+                      "AIDS/HIV","Lymphoma","Metastatic Cancer","Solid Tumour","Rheumatoid Arthritis/CVD",
+                      "Coagulopathy","Obesity","Weight Loss","Fluid and Electrolyte Disorders",
+                      "Blood Loss Anaemia","Deficiency Anaemia","Alcohol Abuse","Drug Abuse",
+                      "Psychoses", "Depression","score","hb", "sex","age","dep_sc","dep_hb","ageg")
+
+data11<-pheno_mm%>%select(-PROCHI,-hb,-age,-dep_hb)#remove unwanted but retain score, ageg and dep
+data_mm<-pheno_mm%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+data_sex<-pheno_mm%>%select(-PROCHI,-score,-hb,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted but retain sex
+data_age<-pheno_mm%>%select(-PROCHI,-score,-hb,-sex,-dep_sc,-dep_hb)#remove unwanted but retain age
+data_dep<-pheno_mm%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_hb,-ageg)#removeremove unwanted but retain dep
+data_sco<-pheno_mm%>%select(-PROCHI,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted but retain MM_scores
+# 
+# data_m<-pheno_mm%>%filter(sex=="M")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_f<-pheno_mm%>%filter(sex=="F")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_40_44<-pheno_mm%>%filter(ageg=="<45")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_45_49<-pheno_mm%>%filter(ageg=="45-49")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_50_59<-pheno_mm%>%filter(ageg=="50_59")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_60_69<-pheno_mm%>%filter(ageg=="60_69")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_70_79<-pheno_mm%>%filter(ageg=="70_79")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_80<-pheno_mm%>%filter(ageg=="80+")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_cMM<-pheno_mm%>%filter(score=="cMM")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+# data_sMM<-pheno_mm%>%filter(score=="sMM")%>%select(-PROCHI,-score,-hb,-sex,-age,-dep_sc,-dep_hb,-ageg)#remove unwanted columns
+
+
+
+trans <- as(data1, "transactions") 
+inspect (head(trans, n=4))
+as(trans, "data.frame") ####all transactions with their items
+head(as(trans, "data.frame"))
+trans
+colnames(trans)
+summary(trans)
+image(trans)
+
+## get unique transactions, count frequency of unique transactions 
+## and plot frequency of unique transactions
+vals <- unique(data1)
+cnts <- tabulate(match(data1, vals))
+plot(sort(cnts, decreasing=TRUE))
+
+#trans<-transactions(data1)
+
+##view relative frequency
+#itemFrequencyPlot(trans, topN=36,xlab="Conditions", ylim=c(0,0.5) )
+trans <- as(data1, "transactions") 
+itemFrequencyPlot(trans, topN=36,xlab="Conditions")
+itemFrequency(trans)
+
+all<-as.data.frame(itemFrequency(trans))
+##for MM only
+trans_mm <- as(data_mm, "transactions")
+all_mm<-as.data.frame(itemFrequency(trans_mm))##only for mm people
+df<-cbind(all, all_mm)
+library(tidyverse)
+df<-as_tibble(df,rownames="conditions")
+fwrite(as.data.frame(df), file="condition distn.csv", sep=",")
+
+ggplot(
+  tibble(Support= sort (itemFrequency(trans, type="absolute"),  decreasing=T),
+                       Item=seq_len(ncol(trans))
+  ),  aes(x=Item, y=Support)) +    geom_point() 
+  
+  #Alternative coding,
+  sapply(data1,class) #check the class of the variables
+  data1_factors<-data1 %>% mutate_if(is.logical, factor)
+  sapply(data1_factors,class) 
+  
+  trans_f<-as(data1_factors,"transactions")
+  #trans_f<-transactions(data1_factors)
+  trans_f
+  inspect (head(trans_f, n=4))
+  image(trans_f)
+  
+  ##subset == selection of transactions with unique characteristics...such as been cMM
+  #trans_cmm<-trans_f[trans %in% "score=cMM"]#usual
+  trans_cmm<-trans[trans %in% "score=cMM"]
+  trans_cmm
+  inspect (head(trans_cmm, n=4))
+  ##view relative frequency
+  itemFrequencyPlot(trans_cmm, topN=36)
+  
+  ggplot(
+    tibble(Support= sort (itemFrequency(trans_cmm, type="absolute"), decreasing=T),
+           Item=seq_len(ncol(trans))
+    ),  aes(x=Item, y=Support)) +    geom_point() 
+  
+  ##vertical layout
+  vertical<-as(trans, "tidLists")
+  as(vertical, "matrix")[1:10,1:5]
+  
+ 
+#########################################################################
+###################################################
+#Frequent Itemsets
+  2^ncol(trans)
+  2^ncol(trans_mm)
+  # 
+its<-apriori(trans, parameter=list(target = "rules" ))
+
+###################association#####################
+its<-apriori(trans, parameter=list(target = "frequent" ))
+its<-apriori(trans, parameter=list(target = "frequent",conf=0.9 ))
+##sort by support
+its<-sort(its, by="support")
+inspect (head(its, n=10))
+
+all_high_support<-inspect (its)
+fwrite(all_high_support, file="all_high_support_freq.csv", sep=",")
+
+##sort by lift
+# its<-sort(its, by="lift")
+# inspect (head(its, n=10))
+# 
+# all_high_lift<-inspect (its)
+# fwrite(all_high_support, file="all_high_lift_freq.csv", sep=",")
+
+##coincise representation/ maximum
+its_max<-its[is.maximal(its)]#
+its_max
+inspect (head(its_max, by="support"))
+maxima<-inspect(its_max, by="support")
+fwrite(maxima, file="all maxima freq .csv", sep=",")
+
+#Find closed frequent itemset      ##works only for frequentist
+its_closed<-its[is.closed(its)]
+its_closed
+inspect (head(its_closed, by="support"))
+closed<- inspect(its_closed, by="support")
+fwrite(closed, file="all closed freq.csv", sep=",")
+#####################################################
+#########rules###########################
+  # its<-apriori(a_list, parameter=list(target = "rules",supp=0.05,conf=0.9))
+its<-apriori(trans, parameter=list(target = "rules",supp=0.0000688, conf=0.9, maxlen=20))
+  
+  #use   
+  5/nrow(trans) #to get the number of support as the default is 10%=0.10
+  10/nrow(trans)
+#  its<-apriori(trans, parameter=list(target = "frequent",supp=0.0000345))
+  its<-apriori(trans, parameter=list(target = "rules",supp=0.0000345))
+  ##sort by support
+  its<-sort(its, by="support")
+  inspect (head(its, n=10))
+  
+  all_high_support<-inspect (its)
+  fwrite(all_high_support, file="all_high_support_rule.csv", sep=",")
+  
+  ##sort by lift
+  its<-sort(its, by="lift")
+  inspect (head(its, n=10))
+  
+  all_high_lift<-inspect (its)
+  fwrite(all_high_support, file="all_high_lift_rule.csv", sep=",")
+  
+  #looks at frequent items with many items
+  ggplot(tibble(`Itemset Size`=factor(size(its))), aes(`Itemset Size`))+
+    geom_bar() 
+  inspect (its[size(its)==2|size(its)==3])
+  ggg<-inspect (its[size(its)<8])
+  ggg<-inspect (its[size(its)==16])
+  ggg<-inspect (its)
+
+  ##coincise representation/ maximum
+  its_max<-its[is.maximal(its)]#
+  its_max
+  inspect (head(its_max, by="support"))
+  maxima<-inspect(its_max, by="support")
+  fwrite(maxima, file="all maxima rules.csv", sep=",")
+  
+  #Find closed frequent itemset      ##works only for frequentist
+  # its_closed<-its[is.closed(its)]
+  # its_closed
+  # inspect (head(its_closed, by="support"))
+  # closed<- inspect(its_closed, by="support")
+  # fwrite(closed, file="all closed.csv", sep=",")
+  
+  counts<- c(
+    frequent=length(its),
+    closed=length(its_closed),
+    maximal=length(its_max)
+  )
+  
+  ggplot(as_tibble(counts, rownames="Itemsets"),
+         aes(Itemsets, counts))+
+    geom_bar(stat="identity") 
+  
+  
+  
+  ###########################
+  ##Association rules
+ rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.90))## support is 5/nrow(trans)
+#rules<-apriori(trans, parameter=list(supp=0.1, conf=0.95, target = "rules"))
+ inspect (head(rules, n=3, by="lift"))
+ rules_all_lift_top1000<- inspect (head(rules,n=472,  by="lift"))
+ fwrite(rules_all_lift_top1000, file="rules_all_lift_top472.csv", sep=",")
+ rules_all_support_top1000<- inspect (head(rules,n=1000,  by="support"))
+ fwrite(rules_all_support_top1000, file="rules_all_support_top1000.csv", sep=",")
+  
+ ##coincise representation/ maximum
+ rules_max<-rules[is.maximal(rules)]#
+ inspect (head(rules_max, by="support"))
+ rules_all_maxima<-inspect(rules_max, by="support")
+ rules_all_maxima<-inspect(head(rules_max,n=13, by="support"))
+ fwrite( rules_all_maxima, file="rules_all_maxima.csv", sep=",")
+ 
+ #Find closed frequent itemset  ONLY FOR FREQUENCY
+ # rules_closed<-rules[is.closed(rules)]
+ # inspect (head(rules_closed, by="support"))
+ # rules_all_closed<- inspect(rules_closed, by="support")
+ # fwrite(rules_all_closed, file="rules_all_closed.csv", sep=",")
+
+ ######USED FOR ALL DATA , WITH SOME VARIABLES###
+trans <- as(data11, "transactions") 
+rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.95))
+ 
+rules_all_male<-subset(rules, subset = rhs %in% "sex=M"&lift>1) 
+write(rules_all_male, file="rules_all_male.csv", sep=",", col.names = NA)
+rules_all_female<-subset(rules, subset = rhs %in% "sex=F"&lift>1) 
+write(rules_all_female, file="rules_all_female.csv", sep=",", col.names = NA)
+
+############By sex
+trans <- as(data_sex, "transactions")
+rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.95))## support is 5/nrow(trans)
+# rules<-apriori(trans, parameter=list(supp=0.1, conf=0.95, target = "rules"))
+# inspect (head(rules, n=3, by="lift"))
+
+rules_sex_male<-subset(rules, subset = rhs %in% "sex=M"&lift>1) 
+write(rules_sex_male, file="rules_sex_male.csv", sep=",", col.names = NA)
+
+rules_max<-rules[is.maximal(rules)]#
+inspect (head(rules_max, by="support"))
+rules_all_maxima<-inspect(rules_max, by="support")
+rules_all_maxima<-inspect(head(rules_max,n=13, by="support"))
+fwrite( rules_all_maxima, file="rules_all_maxima.csv", sep=",")
+
+rules_sex_female<-subset(rules, subset = rhs %in% "sex=F"&lift>1) 
+write(rules_sex_female, file="rules_sex_female.csv", sep=",", col.names = NA)
+
+############By Score
+trans <- as(data_sco, "transactions")
+rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.95))## support is 5/nrow(trans)
+# rules<-apriori(trans, parameter=list(supp=0.1, conf=0.95, target = "rules"))
+# inspect (head(rules, n=3, by="lift"))
+
+rules_score_sMM<-subset(rules, subset = rhs %in% "score=sMM"&lift>1) 
+write(rules_score_sMM, file="rules_score_sMM.csv", sep=",", col.names = NA)
+rules_score_cMM<-subset(rules, subset = rhs %in% "score=cMM"&lift>1) 
+write(rules_score_cMM, file="rules_score_cMM.csv", sep=",", col.names = NA)
+
+#################Age
+trans <- as(data_age, "transactions")
+rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.95))## support is 5/nrow(trans)
+# rules<-apriori(trans, parameter=list(supp=0.1, conf=0.95, target = "rules"))
+# inspect (head(rules, n=3, by="lift"))
+
+rules_age_45<-subset(rules, subset = rhs %in% "ageg=_45"&lift>1) 
+write(rules_age_45, file="rules_age_45.csv", sep=",", col.names = NA)
+rules_age_45_49<-subset(rules, subset = rhs %in% "ageg=45_49"&lift>1) 
+write(rules_age_45_49, file="rules_age_45_49.csv", sep=",", col.names = NA)
+rules_age_50_59<-subset(rules, subset = rhs %in% "ageg=50_59"&lift>1) 
+write(rules_age_50_59, file="rules_age_50_59.csv", sep=",", col.names = NA)
+rules_age_60_69<-subset(rules, subset = rhs %in% "ageg=60_69"&lift>1) 
+write(rules_age_60_69, file="rules_age_60_69.csv", sep=",", col.names = NA)
+rules_age_70_79<-subset(rules, subset = rhs %in% "ageg=70_79"&lift>1) 
+write(rules_age_70_79, file="rules_age_70_79.csv", sep=",", col.names = NA)
+rules_age_80<-subset(rules, subset = rhs %in% "ageg=_80"&lift>1) 
+write(rules_age_80, file="rules_age_80.csv", sep=",", col.names = NA)
+
+
+##################Deprivation
+trans <- as(data_dep, "transactions")
+rules<-apriori(trans, parameter=list(supp=0.0000345, conf=0.95))## support is 5/nrow(trans)
+# rules<-apriori(trans, parameter=list(supp=0.1, conf=0.95, target = "rules"))
+# inspect (head(rules, n=3, by="lift"))
+
+rules_dep_most<-subset(rules, subset = rhs %in% "dep_sc=most_dep"&lift>1) 
+write(rules_dep_most, file="rules_dep_most.csv", sep=",", col.names = NA)
+rules_dep_more<-subset(rules, subset = rhs %in% "dep_sc=more_dep"&lift>1) 
+write(rules_dep_more, file="rules_dep_more.csv", sep=",", col.names = NA)
+rules_dep_middle<-subset(rules, subset = rhs %in% "dep_sc=middle"&lift>1) 
+write(rules_dep_middle, file="rules_dep_middle.csv", sep=",", col.names = NA)
+rules_dep_less<-subset(rules, subset = rhs %in% "dep_sc=less_dep"&lift>1) 
+write(rules_dep_less, file="rules_dep_less.csv", sep=",", col.names = NA)
+rules_dep_least<-subset(rules, subset = rhs %in% "dep_sc=least_dep"&lift>1) 
+write(rules_dep_least, file="rules_dep_least.csv", sep=",", col.names = NA)
+rules_dep_miss<-subset(rules, subset = rhs %in% "dep_sc=missing"&lift>1) 
+write(rules_dep_miss, file="rules_dep_miss.csv", sep=",", col.names = NA)
+
+
+
+####################################
+  #using tidyverse for same thing
+  trans<-data1 %>% transactions()
+  rules<-trans %>% apriori(parameter=list(supp=0.1, conf=0.95, target = "rules"))
+  rules %>% head(rules, n=3, by="lift")%>% inspect ()
+  
+  length(rules)
+  inspect(head(rules))
+  quality(head(rules))
+  
+  #view rules with highest lift
+  rules<- sort(rules, by="lift")
+inspect(head(rules, n=10))
+
+#create rules using alternative encoding (with FALSE item)
+r<-apriori(trans_f)
+inspect(r[1:10])
+inspect (r, n=10, by="lift")
+
+#Calculating additional measures
+interestMeasure(rules[1:10], measure =c("phi","gini"), trans=trans)
+#add measures to the rules
+quality(rules)<cbind(quality(rules),
+                     interestMeasure(rules, measure =c("phi","gini"), trans=trans))
+#find rules with highest correlation phi
+inspect(head(rules, by="phi"))
+
+#Mining using templates
+
+
+
+
+
+
