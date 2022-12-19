@@ -1,0 +1,614 @@
+
+
+
+library(corrplot)
+library(cowplot)
+library(ggally)
+corrplot(cor(data2_mm[,1:31]),type="upper",method="ellipse",tl.cex=0.9)
+
+install.packages("factoextra",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("dbscan",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("cluster",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("mclust",repos=NULL,contriburl="file:V:/R/4.1.2")
+
+library("mclust")
+library("cluster")
+library("dbscan")
+library("factoextra")
+
+
+install.packages("factoextra",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("caret",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arules",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arulesViz",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart.plot",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("e1071",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("klaR",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("plotly",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("RColorBrewer",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("rpart.plot",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("arulesSequences",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("ggtext",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("knitr",repos=NULL,contriburl="file:V:/R/4.1.2")
+install.packages("remotes",repos=NULL,contriburl="file:V:/R/4.1.2")
+#remotes::install_github("hadley/dplyr")
+#install.packages("arules")
+
+
+library("knitr")
+library("ggtext")
+library("arulesSequences")
+library("rpart.plot")
+library("rpart")
+library(RColorBrewer)
+library(plotly)
+library(klaR)
+library(rpart.plot)
+library(arules)
+library(arulesViz)
+library(caret)
+library(rpart)
+library(factoextra)
+# load required libraries
+
+##trials
+
+trans_mm <- as(data_mm, "transactions")
+dis_mm <-trans_mm[,itemFrequency(trans_mm)>0.0]##plotting trans similarity with >5% prev
+d_jaccard_mm <- dissimilarity(dis_mm, which = "items")
+plot(hclust(d_jaccard_mm, method = "ward.D2"), main = "Clustering of Conditions among all with MM")
+
+## get 5 clusters and look at the difference of the item frequencies (bars) 
+## for the top 20 items) in cluster 1 compared to the data (line) 
+hc_mm=hclust(d_jaccard_mm, method = "ward.D2")##preferable
+assign <- cutree(hc_mm, k = 5)
+itemFrequencyPlot(trans_mm[assign==1], population=trans_mm, topN=20)
+itemFrequencyPlot(trans_mm[assign==2], population=trans_mm, topN=20)
+itemFrequencyPlot(trans_mm[assign==3], population=trans_mm, topN=20)
+itemFrequencyPlot(trans_mm[assign==4], population=trans_mm, topN=20)
+itemFrequencyPlot(trans_mm[assign==5], population=trans_mm, topN=20)
+inspect(trans_mm[assign==5])
+## check other methods in "dissimilarity clustering.R"
+
+
+
+##main plots
+
+setwd("P:/Project 3581/codes and data/adeniyi/Results Dendogram Dissimilar full")
+#setwd("P:/Project 3581/codes and data/adeniyi/Results Dendogram Dissimilar full MM")
+
+
+par(mfrow = c(1,1))
+#####MM Conditions
+trans_mm <- as(data_mm, "transactions")
+dis_mm <-trans_mm[,itemFrequency(trans_mm)>0.0]##plotting trans similarity with >5% prev
+d_jaccard_mm <- dissimilarity(dis_mm, which = "items")
+
+hc_mm=hclust(d_jaccard_mm, method = "ward.D2")##preferable
+tiff('data_mm_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_mm,k=4 , cex=0.7, rect = TRUE, main = "Clustering of Conditions among all with MM")
+dev.off()
+
+tiff('data_mm_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_mm, method = "ward.D2"), main = "Clustering of Conditions among all with MM")
+rect.hclust(hc_mm,k=4,  border = "black" )    
+abline(h=1.09, col="black", lty=2, lwd=3 )
+dev.off()
+
+
+
+#####Males MM Conditions
+trans_m <- as(data_m, "transactions")
+dis_m <-trans_m[,itemFrequency(trans_m)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_m <- dissimilarity(dis_m, which = "items")
+
+hc_m=hclust(d_jaccard_m, method = "ward.D2")##preferable
+tiff('data_m_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_m,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Males with MM")
+dev.off()
+
+tiff('data_m_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_m, method = "ward.D2"), main = "Clustering of Conditions among Males with MM")
+rect.hclust(hc_m,k=5,  border = "black" )    
+abline(h=1.08, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+#####FemalesMM Conditions
+trans_f <- as(data_f, "transactions")
+dis_f <-trans_f[,itemFrequency(trans_f)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_f <- dissimilarity(dis_f, which = "items")
+
+hc_f=hclust(d_jaccard_f, method = "ward.D2")##preferable
+tiff('data_f_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_f,k=7, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Females with MM")
+dev.off()
+
+tiff('data_f_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_f, method = "ward.D2"), main = "Clustering of Conditions among Females with MM")
+rect.hclust(hc_f,k=7,  border = "black" )    
+abline(h=1.02, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age1 Conditions
+# trans_age1 <- as(data_age1, "transactions")
+# dis_age1 <-trans_age1[,itemFrequency(trans_age1)>0.00]##plotting trans similarity with >5% prev
+# d_jaccard_age1 <- dissimilarity(dis_age1, which = "items")
+# tiff('data_age1_den.tiff',width=1400, height=1000, res=180)
+# plot(hclust(d_jaccard_age1, method = "ward.D2"), main = "Clustering of Conditions among <45 years with MM")
+# rect.hclust(hc_age5_dep5,k=4,  border = "black" )    
+# abline(h=1.1, col="black", lty=2, lwd=3)
+# dev.off()
+# 
+# hc_age1=hclust(d_jaccard_age1, method = "ward.D2")##preferable
+# tiff('data_age1_fv.tiff',width=1400, height=1000, res=180)
+# fviz_dend(hc_age1,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <45 years with MM")
+# dev.off()
+
+#####_age2 Conditions
+trans_age2 <- as(data_age2, "transactions")
+dis_age2 <-trans_age2[,itemFrequency(trans_age2)>0.00]##plotting trans similarity years with >5% prev
+d_jaccard_age2 <- dissimilarity(dis_age2, which = "items")
+
+hc_age2=hclust(d_jaccard_age2, method = "ward.D2")##preferable
+tiff('data_age2_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age2,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 years with MM")
+dev.off()
+
+tiff('data_age2_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age2, method = "ward.D2"), main = "Clustering of Conditions among <50 years with MM")
+rect.hclust(hc_age2,k=5,  border = "black" )   
+abline(h=1.12, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age3 Conditions
+trans_age3 <- as(data_age3, "transactions")
+dis_age3 <-trans_age3[,itemFrequency(trans_age3)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age3 <- dissimilarity(dis_age3, which = "items")
+
+hc_age3=hclust(d_jaccard_age3, method = "ward.D2")##preferable
+tiff('data_age3_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age3,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 50-59 years with MM")
+dev.off()
+
+tiff('data_age3_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age3, method = "ward.D2"),  main = "Clustering of Conditions among 50-59 years with MM")
+rect.hclust(hc_age3,k=5,  border = "black" )    
+abline(h=1.12, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age4 Conditions
+trans_age4 <- as(data_age4, "transactions")
+dis_age4 <-trans_age4[,itemFrequency(trans_age4)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age4 <- dissimilarity(dis_age4, which = "items")
+
+hc_age4=hclust(d_jaccard_age4, method = "ward.D2")##preferable
+tiff('data_age4_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age4,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 60-69 years with MM")
+dev.off()
+
+tiff('data_age4_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age4, method = "ward.D2"), main = "Clustering of Conditions among 60-69 years with MM")
+rect.hclust(hc_age4,k=5,  border = "black" )   
+abline(h=1.08, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age5 Conditions
+trans_age5 <- as(data_age5, "transactions")
+dis_age5 <-trans_age5[,itemFrequency(trans_age5)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age5 <- dissimilarity(dis_age5, which = "items")
+
+hc_age5=hclust(d_jaccard_age5, method = "ward.D2")##preferable
+tiff('data_age5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5,k=6, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 70-79 years with MM")
+dev.off()
+
+tiff('data_age5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5, method = "ward.D2"),   main = "Clustering of Conditions among 70-79 years with MM")
+rect.hclust(hc_age5,k=6,  border = "black" )    
+abline(h=1.03, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age6 Conditions
+trans_age6 <- as(data_age6, "transactions")
+dis_age6 <-trans_age6[,itemFrequency(trans_age6)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age6 <- dissimilarity(dis_age6, which = "items")
+
+hc_age6=hclust(d_jaccard_age6, method = "ward.D2")##preferable
+tiff('data_age6_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age6,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ years with MM")
+dev.off()
+
+tiff('data_age6_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age6, method = "ward.D2"), main = "Clustering of Conditions among 80+ years with MM")
+rect.hclust(hc_age6,k=5,  border = "black" )    
+abline(h=1.035, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_dep1 Conditions
+trans_dep1 <- as(data_dep1, "transactions")
+dis_dep1 <-trans_dep1[,itemFrequency(trans_dep1)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_dep1 <- dissimilarity(dis_dep1, which = "items")
+
+hc_dep1=hclust(d_jaccard_dep1, method = "ward.D2")##preferable
+tiff('data_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_dep1,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Most deprived with MM")
+dev.off()
+
+tiff('data_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_dep1, method = "ward.D2"),   main = "Clustering of Conditions among Most deprived with MM")
+rect.hclust(hc_dep1,k=5,  border = "black" )    
+abline(h=1.05, col="black", lty=2, lwd=3)
+dev.off()
+
+#####_dep5 Conditions
+trans_dep5 <- as(data_dep5, "transactions")
+dis_dep5 <-trans_dep5[,itemFrequency(trans_dep5)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_dep5 <- dissimilarity(dis_dep5, which = "items")
+
+hc_dep5=hclust(d_jaccard_dep5, method = "ward.D2")##preferable
+tiff('data_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_dep5,k=6, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Least deprived with MM")
+dev.off()
+
+tiff('data_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_dep5, method = "ward.D2"), main = "Clustering of Conditions among Least deprived with MM")
+rect.hclust(hc_dep5,k=6,  border = "black" )    
+abline(h=1.04, col="black", lty=2, lwd=3)
+dev.off()
+
+
+##age and deprivation
+trans_age1_dep1 <- as(data_age1_dep1, "transactions")
+dis_age1_dep1 <-trans_age1_dep1[,itemFrequency(trans_age1_dep1)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age1_dep1 <- dissimilarity(dis_age1_dep1, which = "items")
+
+hc_age1_dep1=hclust(d_jaccard_age1_dep1, method = "ward.D2")##preferable
+tiff('data_age1_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age1_dep1,k=6, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 year & Most Deprived with MM")
+dev.off()
+
+tiff('data_age1_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age1_dep1, method = "ward.D2"), main = "Clustering of Conditions among <50 year & Most Deprived with MM")
+rect.hclust(hc_age1_dep1,k=6,  border = "black" )    
+abline(h=1.08, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+trans_age1_dep5 <- as(data_age1_dep5, "transactions")
+dis_age1_dep5 <-trans_age1_dep5[,itemFrequency(trans_age1_dep5)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age1_dep5 <- dissimilarity(dis_age1_dep5, which = "items")
+
+hc_age1_dep5=hclust(d_jaccard_age1_dep5, method = "ward.D2")##preferable
+tiff('data_age1_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age1_dep5,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 year & Least with MM")
+dev.off()
+
+tiff('data_age1_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age1_dep5, method = "ward.D2"), main = "Clustering of Conditions among <50 year & Least Deprived with MM")
+rect.hclust(hc_age1_dep5,k=5,  border = "black" )    
+abline(h=1.09, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+trans_age5_dep1 <- as(data_age5_dep1, "transactions")
+dis_age5_dep1 <-trans_age5_dep1[,itemFrequency(trans_age5_dep1)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age5_dep1 <- dissimilarity(dis_age5_dep1, which = "items")
+
+hc_age5_dep1=hclust(d_jaccard_age5_dep1, method = "ward.D2")##preferable
+tiff('data_age5_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5_dep1,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ year & Most Deprived with MM")
+dev.off()
+
+tiff('data_age5_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5_dep1, method = "ward.D2"), main = "Clustering of Conditions among 80+ year & Most Deprived with MM")
+rect.hclust(hc_age5_dep1,k=4,  border = "black" )    
+abline(h=1.05, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+trans_age5_dep5 <- as(data_age5_dep5, "transactions")
+dis_age5_dep5 <-trans_age5_dep5[,itemFrequency(trans_age5_dep5)>0.00]##plotting trans similarity with >5% prev
+d_jaccard_age5_dep5 <- dissimilarity(dis_age5_dep5, which = "items")
+
+hc_age5_dep5=hclust(d_jaccard_age5_dep5, method = "ward.D2")##preferable
+tiff('data_age5_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5_dep5,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ year & Least Deprived with MM")
+dev.off()
+
+tiff('data_age5_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5_dep5, method = "ward.D2"), main = "Clustering of Conditions among 80+ year & Least Deprived with MM")
+rect.hclust(hc_age5_dep5,k=4,  border = "black" )    
+abline(h=1.05, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+
+# 
+# 
+# assign <- cutree(hc, k = 5)
+# inspect(dis[assign == 1])
+# inspect(dis[assign == 2])
+# inspect(dis[assign == 3])
+# inspect(dis[assign == 4])
+# inspect(dis[assign == 5])
+
+
+
+
+setwd("P:/Project 3581/codes and data/adeniyi/Results Dendogram Dissimilar 5% MM May 2022")
+#setwd("P:/Project 3581/codes and data/adeniyi/Results Dendogram Dissimilar 5% MM")
+
+
+
+par(mfrow = c(1,1))
+#####MM Conditions
+trans_mm <- as(data_mm, "transactions")
+dis_mm <-trans_mm[,itemFrequency(trans_mm)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_mm <- dissimilarity(dis_mm, which = "items")
+
+hc_mm=hclust(d_jaccard_mm, method = "ward.D2")##preferable
+tiff('data_mm_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_mm,k=4 , cex=0.7, rect = TRUE, main = "Clustering of Conditions among all with MM")
+dev.off()
+
+tiff('data_mm_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_mm, method = "ward.D2"), main = "Clustering of Conditions among all with MM")
+rect.hclust(hc_mm,k=5,  border = "black" )    
+abline(h=0.98, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####Males MM Conditions
+trans_m <- as(data_m, "transactions")
+dis_m <-trans_m[,itemFrequency(trans_m)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_m <- dissimilarity(dis_m, which = "items")
+
+hc_m=hclust(d_jaccard_m, method = "ward.D2")##preferable
+tiff('data_m_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_m,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Males with MM")
+dev.off()
+
+tiff('data_m_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_m, method = "ward.D2"), main = "Clustering of Conditions among Males with MM")
+rect.hclust(hc_m,k=5,  border = "black" )    
+abline(h=0.98, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####Females MM Conditions
+trans_f <- as(data_f, "transactions")
+dis_f <-trans_f[,itemFrequency(trans_f)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_f <- dissimilarity(dis_f, which = "items")
+
+hc_f=hclust(d_jaccard_f, method = "ward.D2")##preferable
+tiff('data_f_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_f,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Females with MM")
+dev.off()
+
+
+tiff('data_f_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_f, method = "ward.D2"), main = "Clustering of Conditions among Females with MM")
+rect.hclust(hc_f,k=5,  border = "black" )    
+abline(h=0.99, col="black", lty=2, lwd=3)
+dev.off()
+
+#####_age1 Conditions
+# trans_age1 <- as(data_age1, "transactions")
+# dis_age1 <-trans_age1[,itemFrequency(trans_age1)>0.05]##plotting trans similarity with >5% prev
+# d_jaccard_age1 <- dissimilarity(dis_age1, which = "items")
+# tiff('data_age1_den.tiff',width=1400, height=1000, res=180)
+# plot(hclust(d_jaccard_age1, method = "ward.D2"), main = "Clustering of Conditions among <45 years with MM")
+# rect.hclust(hc_age5_dep5,k=4,  border = "black" )    abline(h=1.1, col="black", lty=2, lwd=3)
+# dev.off()
+# 
+# hc_age1=hclust(d_jaccard_age1, method = "ward.D2")##preferable
+# tiff('data_age1_fv.tiff',width=1400, height=1000, res=180)
+# fviz_dend(hc_age1,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <45 years with MM")
+# dev.off()
+
+#####_age2 Conditions
+trans_age2 <- as(data_age2, "transactions")
+dis_age2 <-trans_age2[,itemFrequency(trans_age2)>0.05]##plotting trans similarity years with >5% prev
+d_jaccard_age2 <- dissimilarity(dis_age2, which = "items")
+
+hc_age2=hclust(d_jaccard_age2, method = "ward.D2")##preferable
+tiff('data_age2_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age2,k=3, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 years with MM")
+dev.off()
+
+tiff('data_age2_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age2, method = "ward.D2"), main = "Clustering of Conditions among 45-50 years with MM")
+rect.hclust(hc_age2,k=3,  border = "black" )    
+abline(h=1.05, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age3 Conditions
+trans_age3 <- as(data_age3, "transactions")
+dis_age3 <-trans_age3[,itemFrequency(trans_age3)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age3 <- dissimilarity(dis_age3, which = "items")
+
+hc_age3=hclust(d_jaccard_age3, method = "ward.D2")##preferable
+tiff('data_age3_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age3,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 50-59 years with MM")
+dev.off()
+
+tiff('data_age3_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age3, method = "ward.D2"),  main = "Clustering of Conditions among 50-59 years with MM")
+rect.hclust(hc_age3,k=5,  border = "black" )    
+abline(h=1.02, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_age4 Conditions
+trans_age4 <- as(data_age4, "transactions")
+dis_age4 <-trans_age4[,itemFrequency(trans_age4)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age4 <- dissimilarity(dis_age4, which = "items")
+
+hc_age4=hclust(d_jaccard_age4, method = "ward.D2")##preferable
+tiff('data_age4_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age4,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 60-69 years with MM")
+dev.off()
+
+tiff('data_age4_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age4, method = "ward.D2"), main = "Clustering of Conditions among 60-69 years with MM")
+rect.hclust(hc_age4,k=5,  border = "black" )    
+abline(h=1.0, col="black", lty=2, lwd=3)
+dev.off()
+
+#####_age5 Conditions
+trans_age5 <- as(data_age5, "transactions")
+dis_age5 <-trans_age5[,itemFrequency(trans_age5)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age5 <- dissimilarity(dis_age5, which = "items")
+
+hc_age5=hclust(d_jaccard_age5, method = "ward.D2")##preferable
+tiff('data_age5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 70-79 years with MM")
+dev.off()
+
+tiff('data_age5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5, method = "ward.D2"),   main = "Clustering of Conditions among 70-79 years with MM")
+rect.hclust(hc_age5,k=6,  border = "black" )    
+abline(h=0.98, col="black", lty=2, lwd=3)
+dev.off()
+
+#####_age6 Conditions
+trans_age6 <- as(data_age6, "transactions")
+dis_age6 <-trans_age6[,itemFrequency(trans_age6)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age6 <- dissimilarity(dis_age6, which = "items")
+
+hc_age6=hclust(d_jaccard_age6, method = "ward.D2")##preferable
+tiff('data_age6_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age6,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ years with MM")
+dev.off()
+
+tiff('data_age6_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age6, method = "ward.D2"), main = "Clustering of Conditions among 80+ years with MM")
+rect.hclust(hc_age6,k=3,  border = "black" )    
+abline(h=01, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_dep1 Conditions
+trans_dep1 <- as(data_dep1, "transactions")
+dis_dep1 <-trans_dep1[,itemFrequency(trans_dep1)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_dep1 <- dissimilarity(dis_dep1, which = "items")
+
+hc_dep1=hclust(d_jaccard_dep1, method = "ward.D2")##preferable
+tiff('data_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_dep1,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Most deprived with MM")
+dev.off()
+
+tiff('data_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_dep1, method = "ward.D2"),   main = "Clustering of Conditions among Most deprived with MM")
+rect.hclust(hc_dep1,k=5,  border = "black" )    
+abline(h=1.003, col="black", lty=2, lwd=3)
+dev.off()
+
+
+#####_dep5 Conditions
+trans_dep5 <- as(data_dep5, "transactions")
+dis_dep5 <-trans_dep5[,itemFrequency(trans_dep5)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_dep5 <- dissimilarity(dis_dep5, which = "items")
+
+hc_dep5=hclust(d_jaccard_dep5, method = "ward.D2")##preferable
+tiff('data_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_dep5,k=5, cex=0.7, rect = TRUE, main = "Clustering of Conditions among Least deprived with MM")
+dev.off()
+
+tiff('data_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_dep5, method = "ward.D2"), main = "Clustering of Conditions among Least deprived with MM")
+rect.hclust(hc_dep5,k=5,  border = "black" )   
+abline(h=0.1, col="black", lty=2, lwd=3)
+dev.off()
+
+
+##age and deprivation
+data_age1_dep1<-data_age1_dep1%>%
+  modify_if(is.numeric,as.logical)# change 1s to True
+trans_age1_dep1 <- as(data_age1_dep1, "transactions")
+dis_age1_dep1 <-trans_age1_dep1[,itemFrequency(trans_age1_dep1)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age1_dep1 <- dissimilarity(dis_age1_dep1, which = "items")
+
+hc_age1_dep1=hclust(d_jaccard_age1_dep1, method = "ward.D2")##preferable
+tiff('data_age1_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age1_dep1,k=7, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 year & Most Deprived with MM")
+dev.off()
+
+tiff('data_age1_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age1_dep1, method = "ward.D2"), main = "Clustering of Conditions among <50 year & Most Deprived with MM")
+rect.hclust(hc_age1_dep1,k=3,  border = "black" )    
+abline(h=1.01, col="black", lty=2, lwd=3)
+dev.off()
+
+
+data_age1_dep5<-data_age1_dep5%>%
+  modify_if(is.numeric,as.logical)# change 1s to True
+trans_age1_dep5 <- as(data_age1_dep5, "transactions")
+dis_age1_dep5 <-trans_age1_dep5[,itemFrequency(trans_age1_dep5)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age1_dep5 <- dissimilarity(dis_age1_dep5, which = "items")
+
+hc_age1_dep5=hclust(d_jaccard_age1_dep5, method = "ward.D2")##preferable
+tiff('data_age1_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age1_dep5,k=6, cex=0.7, rect = TRUE, main = "Clustering of Conditions among <50 year & Least with MM")
+dev.off()
+
+tiff('data_age1_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age1_dep5, method = "ward.D2"), main = "Clustering of Conditions among <50 year & Least Deprived with MM")
+rect.hclust(hc_age1_dep5,k=5,  border = "black" )    
+abline(h=1.03, col="black", lty=2, lwd=3)
+dev.off()
+
+
+data_age5_dep1<-data_age5_dep1%>%
+  modify_if(is.numeric,as.logical)# change 1s to True
+trans_age5_dep1 <- as(data_age5_dep1, "transactions")
+dis_age5_dep1 <-trans_age5_dep1[,itemFrequency(trans_age5_dep1)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age5_dep1 <- dissimilarity(dis_age5_dep1, which = "items")
+
+hc_age5_dep1=hclust(d_jaccard_age5_dep1, method = "ward.D2")##preferable
+tiff('data_age5_dep1_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5_dep1,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ year & Most Deprived with MM")
+dev.off()
+
+tiff('data_age5_dep1_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5_dep1, method = "ward.D2"), main = "Clustering of Conditions among 80+ year & Most Deprived with MM")
+rect.hclust(hc_age5_dep1,k=4,  border = "black" )    
+abline(h=1.0, col="black", lty=2, lwd=3)
+dev.off()
+
+
+data_age5_dep5<-data_age5_dep5%>%
+  modify_if(is.numeric,as.logical)# change 1s to True
+trans_age5_dep5 <- as(data_age5_dep5, "transactions")
+dis_age5_dep5 <-trans_age5_dep5[,itemFrequency(trans_age5_dep5)>0.05]##plotting trans similarity with >5% prev
+d_jaccard_age5_dep5 <- dissimilarity(dis_age5_dep5, which = "items")
+
+hc_age5_dep5=hclust(d_jaccard_age5_dep5, method = "ward.D2")##preferable
+tiff('data_age5_dep5_fv.tiff',width=1400, height=1300, res=180)
+fviz_dend(hc_age5_dep5,k=4, cex=0.7, rect = TRUE, main = "Clustering of Conditions among 80+ year & Least Deprived with MM")
+dev.off()
+
+tiff('data_age5_dep5_den.tiff',width=1400, height=1000, res=180)
+plot(hclust(d_jaccard_age5_dep5, method = "ward.D2"), main = "Clustering of Conditions among 80+ year & Least Deprived with MM")
+rect.hclust(hc_age5_dep5,k=3,  border = "black" )    
+abline(h=1, col="black", lty=2, lwd=3)
+dev.off()
+
+
+
+
